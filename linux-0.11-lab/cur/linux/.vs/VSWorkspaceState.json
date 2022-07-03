@@ -4,6 +4,6 @@
     "\\kernel",
     "\\kernel\\chr_drv"
   ],
-  "SelectedNode": "\\FlappyBird.c",
+  "SelectedNode": "\\kernel\\chr_drv\\rs_io.o",
   "PreviewInSolutionExplorer": false
 }
