@@ -61,7 +61,6 @@ extern struct tty_struct tty_table[];
 	eol2=\0
 */
 #define INIT_C_CC "\003\034\177\025\004\0\1\0\021\023\032\0\022\017\027\026\0"
-
 void rs_init(void);
 void con_init(void);
 void tty_init(void);
@@ -73,5 +72,35 @@ void rs_write(struct tty_struct * tty);
 void con_write(struct tty_struct * tty);
 
 void copy_to_cooked(struct tty_struct * tty);
-
+#define MSG_MOUSE_CLICK 1
+#define MSG_TIME 2
+#define vga_graph_memstart 0xA0000
+#define vga_graph_memsize 64000
+#define cursor_side 6
+#define vga_width 320
+#define vga_height 200
+typedef struct timer {
+	long jiffies;
+	int type;
+	long init_jiffies;
+	int pid;
+	struct timer* next;
+}timers;
+typedef struct messages{
+	 
+	struct messages *next; 
+	unsigned char mid;
+	int pid;
+}message;
+typedef struct bar{
+    unsigned char posx;
+    unsigned char posy;
+    unsigned char width;
+    unsigned char height;
+	unsigned char color;
+}bars;
+extern void post_message(message *msg);
+extern message *message_head;
+extern message *message_tail;
+extern timers *timer_head;
 #endif

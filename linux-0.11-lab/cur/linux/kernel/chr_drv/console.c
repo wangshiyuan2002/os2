@@ -54,8 +54,7 @@
 #define NPAR 16
 
 extern void keyboard_interrupt(void);
-extern void mouse_interrupt(void); // 澹版槑榧犳爣涓柇澶勭悊鍑芥暟
-
+extern void mouse_interrupt(void);
 static unsigned char	video_type;		/* Type of display being used	*/
 static unsigned long	video_num_columns;	/* Number of text columns	*/
 static unsigned long	video_size_row;		/* Bytes per row		*/
@@ -605,6 +604,8 @@ void con_write(struct tty_struct * tty)
 	set_cursor();
 }
 
+#define I_CM 0x64
+#define I_DT 0x60
 /*
  *  void con_init(void);
  *
@@ -679,21 +680,24 @@ void con_init(void)
 	scr_end	= video_mem_start + video_num_lines * video_size_row;
 	top	= 0;
 	bottom	= video_num_lines;
+
 	gotoxy(ORIG_X,ORIG_Y);
+	outb_p(0xA8,I_CM); //允许鼠标操作
+	outb_p(0xD4,I_CM); //给 0x64 端口发送 0xD4，表示接下来给 0x60 的命令是给鼠标的
+	outb_p(0xFF,I_DT); //让鼠标复位
+	outb_p(0xD4,I_CM); //给 0x64 端口发送 0xD4，表示接下来给 0x60 的命令是给鼠标的
+	outb_p(0xF4,I_DT); //设置鼠标，允许鼠标向主机自动发送数据包
+	outb_p(0x60,I_CM); //给 0x64 端口发送 0x60，表示接下来给 0x60 的命令是给 i8042 的控制寄存器
+	outb_p(0x47,I_DT); //设置 i8042 寄存器，允许鼠标接口及其中断
+
 	set_trap_gate(0x21,&keyboard_interrupt);
-	outb_p(inb_p(0x21)&0xfd,0x21);
+	set_trap_gate(0x2c,&mouse_interrupt);
+
+	outb_p(inb_p(0x21)&0xF9,0x21);//将主片IR2的屏蔽打开
+	outb_p(inb_p(0xA1)&0xEF,0xA1);//将从片IR4的屏蔽打开
 	a=inb_p(0x61);
 	outb_p(a|0x80,0x61);
 	outb(a,0x61);
-	outb_p(0xA8,0x64); 
-	outb_p(0xD4,0x64); 
-	outb_p(0xF4,0x60);
-	outb_p(0x60,0x64);
-	outb_p(0x47,0x60); 
-	set_trap_gate(0x2c,&mouse_interrupt); 
-	outb_p(inb_p(0x21)&0xFB,0x21);
-	outb_p(inb_p(0xA1)&0xEF,0xA1);
-	
 }
 /* from bsd-net-2: */
 

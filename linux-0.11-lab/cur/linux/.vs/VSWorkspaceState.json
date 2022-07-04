@@ -1,9 +1,8 @@
 {
   "ExpandedNodes": [
     "",
-    "\\kernel",
     "\\kernel\\chr_drv"
   ],
-  "SelectedNode": "\\kernel\\chr_drv\\rs_io.o",
+  "SelectedNode": "\\game_final.c",
   "PreviewInSolutionExplorer": false
 }

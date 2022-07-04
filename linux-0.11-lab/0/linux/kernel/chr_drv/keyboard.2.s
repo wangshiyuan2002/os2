@@ -4,7 +4,38 @@
 # 1 "keyboard.S"
 
 
+
+
+
+
+
+
+
+
+
+
+
 # 1 "../../include/linux/config.h" 1
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 # 36 "../../include/linux/config.h"
 
@@ -14,6 +45,9 @@
 
 .text
 .globl keyboard_interrupt
+
+
+
 
 size	= 1024		
 
@@ -25,6 +59,11 @@ buf = 16
 mode:	.byte 0		
 leds:	.byte 2		
 e0:	.byte 0
+
+
+
+
+
 
 keyboard_interrupt:
 	pushl %eax

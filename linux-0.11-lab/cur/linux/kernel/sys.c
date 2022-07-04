@@ -5,7 +5,7 @@
  */
 
 #include <errno.h>
-
+#include <asm/io.h>
 #include <linux/sched.h>
 #include <linux/tty.h>
 #include <linux/kernel.h>
@@ -289,4 +289,88 @@ int sys_umask(int mask)
 
 	current->umask = mask & 0777;
 	return (old);
+}
+
+static int gra=0;
+int sys_init_graphics(int color)
+{
+	int i;
+	char *p=vga_graph_memstart;
+	if(!gra){
+		//进入图形模式
+		outb(0x05,0x3CE);
+		outb(0x40,0x3CF);
+		outb(0x06,0x3CE);
+		outb(0x05,0x3CF);
+		outb(0x04,0x3C4);
+		outb(0x08,0x3C5);
+		outb(0x01,0x3D4);
+		outb(0x4F,0x3D5);
+		outb(0x03,0x3D4);
+		outb(0x82,0x3D5);
+		outb(0x07,0x3D4);
+		outb(0x1F,0x3D5);
+		outb(0x12,0x3D4);
+		outb(0x8F,0x3D5);
+		outb(0x17,0x3D4);
+		outb(0xA3,0x3D5);
+		outb(0x14,0x3D4);
+		outb(0x40,0x3D5);
+		outb(0x13,0x3D4);
+		outb(0x28,0x3D5);
+		outb(0x0C,0x3D4);
+		outb(0x00,0x3D5);
+		outb(0x0D,0x3D4);
+		outb(0x00,0x3D5);
+		gra=1;
+	}
+	//背景颜色设置
+	for (i = 0; i < vga_graph_memsize; i++)
+		*p++ = color;
+	
+	return 0;
+}
+
+message *message_head=NULL;
+message *message_tail=NULL;
+//从消息队列中取出消息
+int sys_get_message(unsigned char *msg)
+{if(!message_head){ put_fs_byte(0,msg);
+		return 1;
+	}
+	message *m=message_head;
+	message_head=message_head->next;
+	put_fs_byte(m->mid,msg);
+	free(m);
+	return 1;
+}
+timers *timer_head=NULL;
+int sys_timer_create(long milliseconds,int type)
+{   long mid = milliseconds / 10;
+	timers *t = (timers*)malloc(sizeof(timers));
+	t->init_jiffies=mid;
+	t->jiffies=mid;
+	t->next=timer_head;
+	t->type=type;
+	t->pid=-1;
+	timer_head=t;
+	return 1;
+}
+int sys_show(unsigned char *ob){
+	int i,j,x1,x2,x3,x4,color;
+	x1=get_fs_byte(ob);
+	x2=get_fs_byte(ob+1);
+	x3=get_fs_byte(ob+2);
+	x4=get_fs_byte(ob+3);
+	color=get_fs_byte(ob+4);
+	x3+=x1;
+	x4+=x2;
+	char *p;
+	for(i=x1;i<=x3;i++){
+		for(j=x2;j<=x4;j++){
+			p=(char *)vga_graph_memstart+j*vga_width+i;
+			*p=color;
+		}
+	}
+	return 1;
 }

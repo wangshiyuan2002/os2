@@ -26,14 +26,14 @@ CPP	=gcc -E -nostdinc -I../include
 
 OBJS  = sched.o system_call.o traps.o asm.o fork.o \
 	panic.o printk.o vsprintf.o sys.o exit.o \
-	signal.o mktime.o gui.o message.o
+	signal.o mktime.o
 
 kernel.o: $(OBJS)
 	$(LD) -r -o kernel.o $(OBJS)
 	sync
 
 clean:
-	rm -f core *.o *.a tmp_make keyboard.s mouse.s
+	rm -f core *.o *.a tmp_make keyboard.s
 	for i in *.c;do rm -f `basename $$i .c`.s;done
 	(cd chr_drv; make clean)
 	(cd blk_drv; make clean)
@@ -67,7 +67,7 @@ sched.s sched.o : sched.c ../include/linux/sched.h ../include/linux/head.h \
   ../include/linux/fs.h ../include/sys/types.h ../include/linux/mm.h \
   ../include/signal.h ../include/linux/kernel.h ../include/linux/sys.h \
   ../include/linux/fdreg.h ../include/asm/system.h ../include/asm/io.h \
-  ../include/asm/segment.h 
+  ../include/asm/segment.h ../include/linux/tty.h
 signal.s signal.o : signal.c ../include/linux/sched.h ../include/linux/head.h \
   ../include/linux/fs.h ../include/sys/types.h ../include/linux/mm.h \
   ../include/signal.h ../include/linux/kernel.h ../include/asm/segment.h 
@@ -81,6 +81,3 @@ traps.s traps.o : traps.c ../include/string.h ../include/linux/head.h \
   ../include/linux/mm.h ../include/signal.h ../include/linux/kernel.h \
   ../include/asm/system.h ../include/asm/segment.h ../include/asm/io.h 
 vsprintf.s vsprintf.o : vsprintf.c ../include/stdarg.h ../include/string.h 
-gui.s gui.o : gui.c ../include/asm/io.h ../include/asm/segment.h
-message.s message.o : gui.c ../include/linux/sched.h ../include/message.h \
-  ../include/asm/segment.h

@@ -19,7 +19,7 @@
 #include <asm/segment.h>
 
 #include <signal.h>
-
+#include <linux/tty.h>
 #define _S(nr) (1<<((nr)-1))
 #define _BLOCKABLE (~(_S(SIGKILL) | _S(SIGSTOP)))
 
@@ -302,75 +302,37 @@ void add_timer(long jiffies, void (*fn)(void))
 	sti();
 }
 
-/*
- *  timer
- */
-#include <message.h>
-struct user_timer{
-	long init_jiffies;
-	long jiffies;
-	int type; // 类型为1表示只定义了一次闹钟
-			  // 类型为0表示定义了无数次闹钟
-	int pid; // 哪个进程创建的定时器
-	struct user_timer * next;
-};
-
-struct user_timer * user_timer_list = NULL;
-
-int sys_timercreate(long ms, int type)
-{
-	struct user_timer * timer = malloc(sizeof(struct user_timer));
-	long jiffies = ms / 10;
-	timer->jiffies = timer->init_jiffies = jiffies;
-	timer->pid = current->pid;
-	timer->type = type;
-	timer->next = user_timer_list;
-	user_timer_list = timer;
-	return 0;
-}
-
 void do_timer(long cpl)
 {
 	extern int beepcount;
 	extern void sysbeepstop(void);
-
-	struct user_timer * timer = user_timer_list;
-	struct user_timer * prev = NULL;
-
-	while(timer != NULL)
-	{
-		if ((--timer->jiffies) <= 0) {
-			post_message(MSG_USER_TIMER);
-			switch(timer->type) {
-			case TYPE_USER_TIMER_INFTY: // 定义了无数次消息
-				timer->jiffies = timer->init_jiffies;
-				prev = timer;
-				timer = timer->next;
-				break;
-			case TYPE_USER_TIMER_ONCE: // 定义了一次消息
-				if (prev == NULL) {
-					free(timer);
-					timer = NULL;
-					user_timer_list = NULL;
-				}
-				else {
-					prev->next = timer->next;
-					free(timer);
-					timer = prev->next;
-				}
-				break;
-			default:
-				panic("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!\n");
-				break;
+	timers *t=timer_head,*pre_t=NULL,*t1;
+	while(t){
+		t->jiffies--;
+		if(t->jiffies==0){
+			message *msg=(message*)malloc(sizeof(message));
+			msg->pid=-1;
+			msg->mid=MSG_TIME;
+			msg->next=NULL;
+			post_message(msg);
+			if(t->type==0){
+				t->jiffies=t->init_jiffies;
+				pre_t=t;
+				t=t->next;
+			}
+			else{
+				t1=t;
+				t=t->next;
+				if(pre_t) pre_t->next=t;
+				else timer_head=t;
+				free(t1);
 			}
 		}
-		else
-		{
-			prev = timer;
-			timer = timer->next;
+		else{
+			pre_t=t;
+			t=t->next;
 		}
 	}
-
 	if (beepcount)
 		if (!--beepcount)
 			sysbeepstop();

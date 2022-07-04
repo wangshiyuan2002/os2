@@ -47,7 +47,7 @@
 #define O_CRNL(tty)	_O_FLAG((tty),OCRNL)
 #define O_NLRET(tty)	_O_FLAG((tty),ONLRET)
 #define O_LCUC(tty)	_O_FLAG((tty),OLCUC)
-int volatile global_message;
+
 struct tty_struct tty_table[] = {
 	{
 		{ICRNL,		/* change incoming CR to NL */
@@ -348,64 +348,72 @@ void chr_dev_init(void)
 {
 }
 
-/*
- *  readmouse
- */
-#include <message.h>
-// 鼠标中断处理程序的主体代码（鼠标数据解析）
-static unsigned char mouse_input_count = 0; // 用来记录是鼠标输入的第几个字节的全局变量
-static unsigned char mouse_left_down; // 左键按下标志，1表示按下了左键
-static unsigned char mouse_right_down; // 右键按下标志，1表示按下了左键
-static unsigned char mouse_center_down; // 中键按下标志，1表示按下了左键
-										// 保留位，总为1
-static unsigned char mouse_x_sign; // x符号标志位，1表示x位移量位负（向左为负、向右为正）
-static unsigned char mouse_y_sign; // y符号标志位，1表示x位移量位负（向上为正、向下为负）
-static unsigned char mouse_x_overflow; // x溢出标志位，1表示x位移量溢出
-static unsigned char mouse_y_overflow; // y溢出标志位，1表示x位移量溢出
-static unsigned int mouse_x_position = 0; // 鼠标横向移动
-static unsigned int mouse_y_position = 0; // 鼠标纵向移动
-static unsigned int mouse_z_position = 0; // 鼠标滚轮移动
-// #define CK_DEBUG
-void readmouse(int mousecode)
+extern message *message_head;
+extern message *message_tail;
+void post_message(message *msg)
 {
-	if(mousecode == 0xFA)
-	{ 
-		mouse_input_count = 1;
+	cli();
+	if(!message_head){
+		message_head=msg;
+		message_tail=msg;
+		message_head->next=NULL;
+		sti();
+		return;
+	}
+	else if(message_head==message_tail){
+		message_tail=msg;
+		message_head->next=message_tail;
+		sti();
+		return;
+	}
+	message_tail->next=msg;
+	message_tail=msg;
+	sti();
+}
+static unsigned char mouse_input_count = 1; 
+static unsigned char mouse_left_down; 
+static unsigned char mouse_right_down; 
+static unsigned char mouse_left_move; 
+static unsigned char mouse_down_move;
+int mouse_x_position=100; 
+int mouse_y_position=100;
+void readmouse(unsigned int mousecode)
+{	
+	if(mousecode==0xFA)
+	{
+		mouse_input_count=1;
 		return 0;
 	}
 	switch(mouse_input_count)
 	{
-		case 1: 
-		mouse_left_down = (mousecode & 0x1) == 0x1;
-		mouse_right_down = (mousecode & 0x2) == 0x2;
-		mouse_center_down = (mousecode & 0x4) == 0x4;
-		mouse_x_sign = (mousecode & 0x10) == 0x10;
-		mouse_y_sign = (mousecode & 0x20) == 0x20;
-		mouse_x_overflow = (mousecode & 0x40) == 0x40;
-		mouse_y_overflow = (mousecode & 0x80) == 0x80;
-		++mouse_input_count;
-			if (mouse_left_down)
-			    post_message(MSG_MOUSE_LEFT_DOWN);
-			if (mouse_right_down)
-			    post_message(MSG_MOUSE_RIGHT_DOWN);
+		case 1:
+			mouse_left_down=(mousecode &0x01) ==0x01;
+			mouse_right_down=(mousecode &0x02)==0x02;
+			mouse_left_move=(mousecode & 0x10)==0x10;
+			mouse_down_move=(mousecode & 0x20)==0x20;
+			mouse_input_count++;
+			if(mouse_left_down){
+				message *msg=(message*)malloc(sizeof(message));
+				msg->mid=MSG_MOUSE_CLICK;
+				msg->pid=-1;
+				post_message(msg);
+			}
 			break;
 		case 2:
-			if(mouse_x_sign) 
-				mouse_x_position += (int)(0xFFFFFF00|mousecode);
-			else
-				mouse_x_position += (int)(mousecode);
-			++mouse_input_count;
+			mouse_x_position +=(mouse_left_move)?(int)(0xFFFFFF00|mousecode):(int)(mousecode);
+			if(mouse_x_position>150)
+				mouse_x_position=150;
+			if(mouse_x_position<0)
+				mouse_x_position=0;
+			mouse_input_count++;
 			break;
-		case 3: 
-			if(mouse_y_sign) 
-				mouse_y_position += (int)(0xFFFFFF00|mousecode);
-			else
-				mouse_y_position += (int)(mousecode);
-			++mouse_input_count;
-			break;
-		case 4: 
-			mouse_z_position += (int)(mousecode);
-			++mouse_input_count;
+		case 3:
+			mouse_y_position +=(mouse_down_move)?(int)(0xFFFFFF00|mousecode):(int)(mousecode);
+			if(mouse_y_position>200) 
+				mouse_y_position=200;
+			if(mouse_y_position<0) 
+				mouse_y_position=0;
+			mouse_input_count=1;
 			break;
 	}
 }
